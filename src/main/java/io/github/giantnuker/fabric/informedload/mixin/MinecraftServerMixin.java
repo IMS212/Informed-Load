@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(MinecraftServer.class)
 public abstract class MinecraftServerMixin {
-    @Shadow
-    public abstract ServerWorld getWorld(DimensionType dimensionType);
 
-    @Redirect(method = "prepareStartRegion", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getWorld(Lnet/minecraft/world/dimension/DimensionType;)Lnet/minecraft/server/world/ServerWorld;"))
-    private ServerWorld logTheWorld(MinecraftServer minecraftServer, DimensionType dimensionType) {
-        ServerWorld serverWorld = getWorld(dimensionType);
+    @Shadow public abstract ServerWorld getOverworld();
+
+    @Redirect(method = "prepareStartRegion", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;getOverworld()Lnet/minecraft/server/world/ServerWorld;"))
+    private ServerWorld logTheWorld(MinecraftServer minecraftServer) {
+        ServerWorld serverWorld = getOverworld();
         if (serverWorld.getClass() == ServerWorld.class) InformedLoadUtils.loadingWorld = serverWorld;
         return serverWorld;
     }

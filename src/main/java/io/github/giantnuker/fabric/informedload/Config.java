@@ -1,13 +1,13 @@
 package io.github.giantnuker.fabric.informedload;
 
-import me.sargunvohra.mcmods.autoconfig1.ConfigData;
-import me.sargunvohra.mcmods.autoconfig1.annotation.ConfigEntry;
-import me.sargunvohra.mcmods.autoconfig1.shadowed.blue.endless.jankson.Comment;
+import me.sargunvohra.mcmods.autoconfig1u.ConfigData;
+import me.sargunvohra.mcmods.autoconfig1u.annotation.ConfigEntry;
+import me.sargunvohra.mcmods.autoconfig1u.shadowed.blue.endless.jankson.Comment;
 
 /**
  * @author Indigo Amann
  */
-@me.sargunvohra.mcmods.autoconfig1.annotation.Config(name = InformedLoadUtils.MODID)
+@me.sargunvohra.mcmods.autoconfig1u.annotation.Config(name = InformedLoadUtils.MODID)
 public class Config implements ConfigData {
     public boolean logDebugs = false;
     public enum SplitType {

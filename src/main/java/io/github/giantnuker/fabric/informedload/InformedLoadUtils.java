@@ -9,7 +9,9 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.MaterialColor;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.WorldGenerationProgressTracker;
+import net.minecraft.client.gui.hud.BackgroundHelper;
 import net.minecraft.client.texture.TextureManager;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
@@ -86,17 +88,27 @@ public class InformedLoadUtils implements ModInitializer {
     public static int findMiddle(int a, int b) {
         return (a + b) / 2;
     }
-    public static void makeProgressBar(int x, int y, int end_x, int end_y, float progress, String text) {
-        makeProgressBar(x, y, end_x, end_y, progress, text, Color.WHITE.getRGB(), new Color(226, 40, 55).getRGB());
+    public static void renderProgressBar(MatrixStack matrixStack, int x, int y, int endx, int endy, float progress, float f) {
+        int m = MathHelper.ceil((float)(endx - x - 2) * progress);
+        int n = Math.round(f * 255.0F);
+        int o = BackgroundHelper.ColorMixer.getArgb(n, 255, 255, 255);
+        fill(matrixStack, x + 1, y, endx - 1, y + 1, o);
+        fill(matrixStack, x + 1, endy, endx - 1, endy - 1, o);
+        fill(matrixStack, x, y, x + 1, endy, o);
+        fill(matrixStack, endx, y, endx - 1, endy, o);
+        fill(matrixStack, x + 2, y + 2, x + m, endy - 2, o);
     }
-    public static void makeProgressBar(int minX, int minY, int maxX, int maxY, float progress, String text, int outer, int inner) {
+    public static void makeProgressBar(MatrixStack matrixStack, int x, int y, int end_x, int end_y, float progress, String text) {
+        makeProgressBar(matrixStack, x, y, end_x, end_y, progress, text, Color.WHITE.getRGB(), new Color(226, 40, 55).getRGB());
+    }
+    public static void makeProgressBar(MatrixStack matrixStack, int minX, int minY, int maxX, int maxY, float progress, String text, int outer, int inner) {
         int percent = MathHelper.ceil(((float)(maxX - minX - 2) * progress) + 1);
 
-        fill(minX - 1, minY - 1, maxX + 1, maxY + 1, Color.black.getRGB());
-        fill(minX, minY, maxX, maxY, outer);
-        fill(minX + 1, minY + 1, minX + percent, maxY - 1, inner);
+        fill(matrixStack, minX - 1, minY - 1, maxX + 1, maxY + 1, Color.black.getRGB());
+        fill(matrixStack, minX, minY, maxX, maxY, outer);
+        fill(matrixStack, minX + 1, minY + 1, minX + percent, maxY - 1, inner);
         //Text
-        InformedLoadUtils.textRenderer.draw(text, InformedLoadUtils.findMiddle(minX + 1, maxX - 1) - InformedLoadUtils.textRenderer.getStringWidth(text) / 2f, minY + 1, maxY - minY - 2);
+        InformedLoadUtils.textRenderer.draw(matrixStack, text, InformedLoadUtils.findMiddle(minX + 1, maxX - 1) - InformedLoadUtils.textRenderer.getWidth(text) / 2f, minY + 1, maxY - minY - 2);
     }
     public static int fadeOut(Color color, float amount) {
         return fadeColor(color, Color.WHITE, amount).getRGB();
@@ -143,7 +155,7 @@ public class InformedLoadUtils implements ModInitializer {
     public static int spritesToLoad;
     public static Object2IntMap<ChunkStatus> STATUS_TO_COLOR;
     public static HashMap<ChunkStatus, String> STATUS_TO_NAME;
-    public static void drawChunkMap(WorldGenerationProgressTracker progressProvider, int centerX, int centerY, int chunkSize) {
+    public static void drawChunkMap(WorldGenerationProgressTracker progressProvider, MatrixStack matrixStack, int centerX, int centerY, int chunkSize) {
         int gridSize = progressProvider.getSize();
 
         int totalSize = gridSize * chunkSize;
@@ -167,8 +179,8 @@ public class InformedLoadUtils implements ModInitializer {
                 int dispX = minX + gridX * chunkSize;
                 int dispY = minY + gridY * chunkSize;
                 if (chunk == null || !config.worldload_loveDisplay.worldmap) {
-                    fill(dispX, dispY, dispX + chunkSize, dispY + chunkSize, 0xFFFFFFFF);
-                    fill(dispX, dispY, dispX + chunkSize, dispY + chunkSize, STATUS_TO_COLOR.getInt(chunkStatus));
+                    fill(matrixStack, dispX, dispY, dispX + chunkSize, dispY + chunkSize, 0xFFFFFFFF);
+                    fill(matrixStack, dispX, dispY, dispX + chunkSize, dispY + chunkSize, STATUS_TO_COLOR.getInt(chunkStatus));
                 } else {
                     BlockState blockState;
                     MaterialColor color = null;
@@ -184,11 +196,11 @@ public class InformedLoadUtils implements ModInitializer {
                             int c1 = color.getRenderColor(2);
                             int newc = (((c1 >> 0) & 0xFF) << 16) | (((c1 >> 8) & 0xFF) << 8) | (((c1 >> 16) & 0xFF) << 0) | 0xFF000000;
 
-                            fill(dispX + (int) (chunkSize / (16f / x)), dispY + (int) (chunkSize / (16f / z)), dispX + chunkSize, dispY + chunkSize, newc);
+                            fill(matrixStack, dispX + (int) (chunkSize / (16f / x)), dispY + (int) (chunkSize / (16f / z)), dispX + chunkSize, dispY + chunkSize, newc);
                         }
                     }
                     if (chunkStatus != ChunkStatus.FULL) {
-                        fill(dispX, dispY, dispX + chunkSize, dispY + chunkSize, STATUS_TO_COLOR.getInt(chunkStatus));
+                        fill(matrixStack, dispX, dispY, dispX + chunkSize, dispY + chunkSize, STATUS_TO_COLOR.getInt(chunkStatus));
                     }
                 }
             }

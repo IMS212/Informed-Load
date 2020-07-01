@@ -15,6 +15,7 @@
     "MinecraftServerMixin",
 
     "MinecraftClientAccessor",
+    "LanguageManagerAccessor",
 
     "EntrypointCatcherMixin"
   ],

@@ -2,6 +2,7 @@ package io.github.giantnuker.fabric.informedload.api;
 
 import io.github.giantnuker.fabric.informedload.InformedLoadUtils;
 import net.minecraft.client.util.Window;
+import net.minecraft.client.util.math.MatrixStack;
 
 import java.awt.Color;
 
@@ -32,8 +33,8 @@ public abstract class ProgressBar {
     public float getProgress() {
         return progress;
     }
-    public void render(Window window) {
-        InformedLoadUtils.makeProgressBar(getX(window), getY(window), getMaxX(window), getY(window) + 10, progress, text, outer.getRGB(), inner.getRGB());
+    public void render(Window window, MatrixStack matrixStack) {
+        InformedLoadUtils.makeProgressBar(matrixStack, getX(window), getY(window), getMaxX(window), getY(window) + 10, progress, text, outer.getRGB(), inner.getRGB());
     }
     protected abstract int getX(Window window);
     protected abstract int getMaxX(Window window);

@@ -1,8 +1,6 @@
 package io.github.giantnuker.fabric.informedload;
 
-import com.google.gson.JsonParser;
 import com.mojang.blaze3d.platform.GLX;
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import io.github.giantnuker.fabric.informedload.api.ProgressBar;
 import io.github.giantnuker.fabric.informedload.mixin.MinecraftClientAccessor;
@@ -15,19 +13,18 @@ import net.fabricmc.loader.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.fabricmc.loader.api.metadata.ModMetadata;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Mouse;
 import net.minecraft.client.RunArgs;
 import net.minecraft.client.WindowSettings;
 import net.minecraft.client.font.FontManager;
-import net.minecraft.client.font.FontStorage;
-import net.minecraft.client.font.FontType;
-import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gl.Framebuffer;
-import net.minecraft.client.gui.DrawableHelper;
+import net.minecraft.client.gui.hud.BackgroundHelper;
 import net.minecraft.client.options.GameOptions;
 import net.minecraft.client.resource.language.LanguageManager;
 import net.minecraft.client.texture.TextureManager;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.util.WindowProvider;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.resource.ReloadableResourceManagerImpl;
 import net.minecraft.resource.ResourcePack;
 import net.minecraft.resource.ResourcePackProfile;
@@ -41,33 +38,43 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static net.minecraft.client.MinecraftClient.IS_SYSTEM_MAC;
-import static org.lwjgl.glfw.GLFW.glfwPollEvents;
-import static org.lwjgl.glfw.GLFW.glfwSwapBuffers;
+import static net.minecraft.client.gui.DrawableHelper.drawTexture;
+import static net.minecraft.client.gui.DrawableHelper.fill;
 
 public class InformedEntrypointHandler implements EntrypointHandler {
     public static boolean STARTED = false;
     private static volatile InformedEntrypointHandler INSTANCE;
     public static RunArgs args;
+    public static boolean isPreloading = true;
+
     public static void runThreadingBypassHandler(File newRunDir, Object gameInstance) {
         try {
             // Window creation and init
             MinecraftClientAccessor mc = ((MinecraftClientAccessor) MinecraftClient.getInstance());
             Field modifiersField = Field.class.getDeclaredField("modifiers");
             modifiersField.setAccessible(true);
-            mc.runStartTimerHackThread();
+            //mc.runStartTimerHackThread();
             MinecraftClientAccessor.getLOGGER().info("Backend library: {}", RenderSystem.getBackendDescription());
             WindowSettings windowSettings2;
-            System.out.println(args);
-            GameOptions options = new GameOptions(MinecraftClient.getInstance(), args.directories.runDir);
-            if (options.overrideHeight > 0 && options.overrideWidth > 0) {
-                windowSettings2 = new WindowSettings(options.overrideWidth, options.overrideHeight, args.windowSettings.fullscreenWidth, args.windowSettings.fullscreenHeight, args.windowSettings.fullscreen);
-            } else {
-                windowSettings2 = args.windowSettings;
-            }
+            GameOptions options = new GameOptions(MinecraftClient.getInstance(), MinecraftClient.getInstance().runDirectory);
+
+            Field optionsField = MinecraftClient.class.getDeclaredField(FabricLoader.INSTANCE.getMappingResolver().mapFieldName("intermediary", "net.minecraft.class_310", "field_1690", "Lnet/minecraft/class_315;"));
+            //                                                                                                                                        net.minecraft.client.MinecraftClient options net.minecraft.client.options.GameOptions
+            modifiersField.setInt(optionsField, optionsField.getModifiers() & ~Modifier.FINAL);
+            optionsField.setAccessible(true);
+            optionsField.set(MinecraftClient.getInstance(), options);
+
+            //MinecraftClient.getInstance().options = options;
+            //if (options.overrideHeight > 0 && options.overrideWidth > 0) {
+            windowSettings2 = new WindowSettings(/*options.overrideWidth, options.overrideHeight*/750, 500, OptionalInt.empty(), OptionalInt.empty(), false);
+            //} else {
+            //    windowSettings2 = args.windowSettings;
+            //}
 
             Util.nanoTimeSupplier = RenderSystem.initBackendSystem();
             Field windowProviderField = MinecraftClient.class.getDeclaredField(FabricLoader.INSTANCE.getMappingResolver().mapFieldName("intermediary", "net.minecraft.class_310", "field_1686", "Lnet/minecraft/class_3682;"));
@@ -76,6 +83,7 @@ public class InformedEntrypointHandler implements EntrypointHandler {
             windowProviderField.setAccessible(true);
             windowProviderField.set(MinecraftClient.getInstance(), new WindowProvider(MinecraftClient.getInstance()));
             mc.setWindow(mc.getWindowProvider().createWindow(windowSettings2, options.fullscreenResolution, mc.runGetWindowTitle()));
+            mc.setMouse(new Mouse((MinecraftClient) mc));
             mc.runOnWindowFocusChanged(true);
 
             try {
@@ -104,7 +112,7 @@ public class InformedEntrypointHandler implements EntrypointHandler {
 
 
             // Setup Informed Load hooks
-            ReloadableResourceManagerImpl resourceManager = new ReloadableResourceManagerImpl(ResourceType.CLIENT_RESOURCES, mc.getThread());
+            ReloadableResourceManagerImpl resourceManager = new ReloadableResourceManagerImpl(ResourceType.CLIENT_RESOURCES);
             options.addResourcePackProfilesToManager(mc.getResourcePackManager());
             mc.getResourcePackManager().scanPacks();
 
@@ -115,7 +123,7 @@ public class InformedEntrypointHandler implements EntrypointHandler {
 
             LanguageManager languageManager = new LanguageManager(options.language);
             resourceManager.registerListener(languageManager);
-            languageManager.reloadResources(list);
+            //((LanguageManagerAccessor) languageManager).runReloadResources(list.stream());
             InformedLoadUtils.textureManager = new TextureManager(resourceManager);
 
             int i = MinecraftClient.getInstance().getWindow().calculateScaleFactor(options.guiScale, options.forceUnicodeFont);
@@ -124,60 +132,116 @@ public class InformedEntrypointHandler implements EntrypointHandler {
             Framebuffer framebuffer = mc.getFramebuffer();
             framebuffer.resize(MinecraftClient.getInstance().getWindow().getFramebufferWidth(), MinecraftClient.getInstance().getWindow().getFramebufferHeight(), IS_SYSTEM_MAC);
 
-            FontManager fontManager = new FontManager(InformedLoadUtils.textureManager, options.forceUnicodeFont);
+            FontManager fontManager = new FontManager(InformedLoadUtils.textureManager);
             resourceManager.registerListener(fontManager.getResourceReloadListener());
 
-            final FontStorage fontStorage_1 = new FontStorage(InformedLoadUtils.textureManager, new Identifier("loading"));
-            fontStorage_1.setFonts(Collections.singletonList(FontType.BITMAP.createLoader(new JsonParser().parse(InformedLoadUtils.FONT_JSON).getAsJsonObject()).load(resourceManager)));
-            InformedLoadUtils.textRenderer = new TextRenderer(InformedLoadUtils.textureManager, fontStorage_1);
+            //final FontStorage fontStorage_1 = new FontStorage(InformedLoadUtils.textureManager, new Identifier("loading"));
+            //fontStorage_1.setFonts(Collections.singletonList(FontType.BITMAP.createLoader(new JsonParser().parse(InformedLoadUtils.FONT_JSON).getAsJsonObject()).load(resourceManager)));
+            InformedLoadUtils.textRenderer = fontManager.createTextRenderer();
         } catch (Throwable t) {
             throw new RuntimeException(t);
         }
         STARTED = true;
         Thread loaderThread = new Thread(() -> EntrypointCatcher.runEntrypointRedirection(newRunDir, gameInstance)); // Doing this allows someone else to redirect it still
         loaderThread.start();
-        while (INSTANCE == null) {}
+        while (INSTANCE == null) {
+        }
         while (loaderThread.isAlive()) {
             INSTANCE.render();
         }
+        isPreloading = false;
     }
 
     List<ProgressBar> progressBars = new ArrayList<>();
     String subText1 = "", subText2 = "";
     boolean keepRendering = true;
-    private static final Identifier LOGO = new Identifier("textures/gui/title/mojang.png");
+    public static boolean endPrerender = false;
+    private static final Identifier LOGO = new Identifier("textures/gui/title/mojangstudios.png");
+
+    private static final int field_25042 = BackgroundHelper.ColorMixer.getArgb(255, 239, 50, 61) & 16777215;
 
     private void render() {
-        GlStateManager.pushMatrix();
-        GlStateManager.clearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        GlStateManager.clear(16640, MinecraftClient.IS_SYSTEM_MAC);
-        GlStateManager.loadIdentity();
-        GlStateManager.ortho(0.0D, MinecraftClient.getInstance().getWindow().getScaledWidth(), MinecraftClient.getInstance().getWindow().getScaledHeight(), 0.0D, -1000.0D, 1000.0D);
+        MatrixStack matrices = new MatrixStack();
+        MinecraftClient client = MinecraftClient.getInstance();
+        int i = client.getWindow().getScaledWidth();
+        int j = client.getWindow().getScaledHeight();
+        long l = Util.getMeasuringTimeMs();
+        //if (this.reloading && (this.reloadMonitor.isPrepareStageComplete() || client.currentScreen != null) && this.prepareCompleteTime == -1L) {
+        //    this.prepareCompleteTime = l;
+        //}
+
+        //float f = this.applyCompleteTime > -1L ? (float)(l - this.applyCompleteTime) / 1000.0F : -1.0F;
+        //float g = this.prepareCompleteTime > -1L ? (float)(l - this.prepareCompleteTime) / 500.0F : -1.0F;
+        float o;
+        int m;
+        //if (client.currentScreen != null) {
+        //    client.currentScreen.render(matrices, 0, 0, delta);
+        //}
+        m = 255;
+        Window window = MinecraftClient.getInstance().getWindow();
+        RenderSystem.pushMatrix();
+        RenderSystem.clear(256, MinecraftClient.IS_SYSTEM_MAC);
+        RenderSystem.matrixMode(5889);
+        RenderSystem.loadIdentity();
+        RenderSystem.ortho(0.0D, (double)window.getFramebufferWidth() / window.getScaleFactor(), (double)window.getFramebufferHeight() / window.getScaleFactor(), 0.0D, 1000.0D, 3000.0D);
         RenderSystem.matrixMode(5888);
-        //GlStateManager.enableBlend();
-        InformedLoadUtils.textureManager.bindTexture(LOGO);
-        GlStateManager.color4f(1.0F, 1.0F, 1.0F, 1.0f);
-        DrawableHelper.blit((MinecraftClient.getInstance().getWindow().getScaledWidth() - 256) / 2, (MinecraftClient.getInstance().getWindow().getScaledHeight() - 256) / 2 - 40, 0, 0, 0, 256, 256, 256, 256);
-        for (int i = 0; i < progressBars.size(); i++) {
-            ProgressBar progressBar = progressBars.get(i);
-            progressBar.render(MinecraftClient.getInstance().getWindow());
-        }
-        renderSubText(subText2, 0);
-        renderSubText(subText1, 1);
-        GlStateManager.popMatrix();
-        glfwSwapBuffers(MinecraftClient.getInstance().getWindow().getHandle());
-        try {
-            glfwPollEvents();
-        } catch (NullPointerException ignoreme) {
-            // ok boomer
-        }
+        RenderSystem.loadIdentity();
+        RenderSystem.translatef(0.0F, 0.0F, -2000.0F);
+
+        fill(matrices, 0, 0, i, j, field_25042 | 255 << 24);
+
+        m = (int) ((double) client.getWindow().getScaledWidth() * 0.5D);
+        int q = (int) ((double) client.getWindow().getScaledHeight() * 0.5D);
+        double d = Math.min((double) client.getWindow().getScaledWidth() * 0.75D, (double) client.getWindow().getScaledHeight()) * 0.25D;
+        int r = (int) (d * 0.5D);
+        r += 40;
+        double e = d * 4.0D;
+        int s = (int) (e * 0.5D);
+        client.getTextureManager().bindTexture(LOGO);
+        RenderSystem.enableBlend();
+        RenderSystem.blendEquation(32774);
+        RenderSystem.blendFunc(770, 1);
+        RenderSystem.alphaFunc(516, 0.0F);
+        RenderSystem.color4f(1.0F, 1.0F, 1.0F, 1.0f);
+        drawTexture(matrices, m - s, q - r, s, (int) d, -0.0625F, 0.0F, 120, 60, 120, 120);
+        drawTexture(matrices, m, q - r, s, (int) d, 0.0625F, 60.0F, 120, 60, 120, 120);
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.defaultAlphaFunc();
+        RenderSystem.disableBlend();
+        //int t = (int) ((double) client.getWindow().getScaledHeight() * 0.8325D);
+        //float u = this.reloadMonitor.getProgress();
+        //this.progress = MathHelper.clamp(this.progress * 0.95F + u * 0.050000012F, 0.0F, 1.0F);
+        //if (f < 1.0F) {
+        //    this.renderProgressBar(matrices, i / 2 - s, t - 5, i / 2 + s, t + 5, 1.0F - MathHelper.clamp(f, 0.0F, 1.0F));
+        //}
+
+        //if (f >= 2.0F) {
+            //client.setOverlay((Overlay) null);
+        //}
+
+        /*if (this.applyCompleteTime == -1L && this.reloadMonitor.isApplyStageComplete() && (!this.reloading || g >= 2.0F)) {
+            try {
+                this.reloadMonitor.throwExceptions();
+                this.exceptionHandler.accept(Optional.empty());
+            } catch (Throwable var23) {
+                this.exceptionHandler.accept(Optional.of(var23));
+            }
+
+            this.applyCompleteTime = Util.getMeasuringTimeMs();
+            if (client.currentScreen != null) {
+                client.currentScreen.init(client, client.getWindow().getScaledWidth(), client.getWindow().getScaledHeight());
+            }
+        }*/
+        RenderSystem.popMatrix();
+        window.swapBuffers();
+        //glfwSwapBuffers(MinecraftClient.getInstance().getWindow().getHandle());
         if (GLX._shouldClose(MinecraftClient.getInstance().getWindow())) {
             MinecraftClient.getInstance().stop();
         }
     }
 
     private void renderSubText(String text, int row) {
-        InformedLoadUtils.textRenderer.draw(text, MinecraftClient.getInstance().getWindow().getScaledWidth() / 2f - InformedLoadUtils.textRenderer.getStringWidth(text) / 2f, MinecraftClient.getInstance().getWindow().getScaledHeight() - (row + 1) * 20, 0x666666);
+//        InformedLoadUtils.textRenderer.draw(text, MinecraftClient.getInstance().getWindow().getScaledWidth() / 2f - InformedLoadUtils.textRenderer.getWidth(text) / 2f, MinecraftClient.getInstance().getWindow().getScaledHeight() - (row + 1) * 20, 0x666666);
     }
 
     public ProgressBar createProgressBar(int row, ProgressBar.SplitType splitType) {
@@ -203,6 +267,7 @@ public class InformedEntrypointHandler implements EntrypointHandler {
 
     @Override
     public void beforeModsLoaded() {
+        //runThreadingBypassHandler(MinecraftClient.getInstance().runDirectory, MinecraftClient.getInstance());
         INSTANCE = this;
         progressBars.clear();
         overall = createProgressBar(0, ProgressBar.SplitType.NONE);
@@ -226,6 +291,7 @@ public class InformedEntrypointHandler implements EntrypointHandler {
         progressBars.add(commonEntrypoints);
         progressBars.add(clientEntrypoints);
     }
+
     @Override
     public void beforeModInitEntrypoint(String id, ModContainer mod, EntrypointKind entrypointKind) {
         overall.setText("Running Entrypoints - " + (entrypointKind == EntrypointKind.CLIENT ? "Client" : "Common"));

@@ -13,9 +13,10 @@ group = project.maven_group
 minecraft {
 }
 repositories {
+	jcenter()
 	maven { url = "https://maven.fabricmc.net/" }
 	maven { url = "https://minecraft.curseforge.com/api/maven" }
-	maven { url = 'http://maven.sargunv.s3-website-us-west-2.amazonaws.com/' }
+	//maven { url = 'http://maven.sargunv.s3-website-us-west-2.amazonaws.com/' }
 	//maven {url "https://maven.jamieswhiteshirt.com/libs-release/"} // Developer mode mod
 	maven { url "https://maven.swordglowsblue.com" } // Artifice
 	maven { url 'http://server.bbkr.space:8081/artifactory/libs-release' } // Jankson
@@ -28,10 +29,12 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
 	modCompile "net.fabricmc:fabric-loader:${project.loader_version}"
-	modCompile "cloth-config:ClothConfig:${project.cloth_config_version}"
-	include "cloth-config:ClothConfig:${project.cloth_config_version}"
-	modCompile "me.sargunvohra.mcmods:auto-config:${project.auto_config_version}"
-	include "me.sargunvohra.mcmods:auto-config:${project.auto_config_version}"
+
+	modApi "me.sargunvohra.mcmods:autoconfig1u:3.2.0-unstable"
+	//modCompile "cloth-config:ClothConfig:${project.cloth_config_version}"
+	//include "cloth-config:ClothConfig:${project.cloth_config_version}"
+	//modCompile "me.sargunvohra.mcmods:auto-config:${project.auto_config_version}"
+	//include "me.sargunvohra.mcmods:auto-config:${project.auto_config_version}"
 
 	modImplementation "com.github.giantnuker:EntrypointCatcher:${project.entrypoint_catcher_version}"
 	include "com.github.giantnuker:EntrypointCatcher:${project.entrypoint_catcher_version}"
@@ -42,7 +45,7 @@ dependencies {
 	// Tests
 	//modCompile "com.jamieswhiteshirt:developer-mode:1.0.11" // developer mode mod
 	//modCompile "artificemc:artifice:0.3.5" // artifice
-	modCompile "io.github.cottonmc:Jankson:1.0.0+j1.1.2" // jankson
+	//modCompile "io.github.cottonmc:Jankson:1.0.0+j1.1.2" // jankson
 	//modCompile "com.github.Juuxel:Adorn:1.4.2" // adorn
 
 	// Fabric API. This is technically optional, but you probably want it anyway.

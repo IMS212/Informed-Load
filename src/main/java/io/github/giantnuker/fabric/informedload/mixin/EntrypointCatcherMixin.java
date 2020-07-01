@@ -36,6 +36,7 @@ public class EntrypointCatcherMixin {
 
             LOGGER.info("Mod Initialization complete");
         } else {
+            System.out.println("entrything");
             InformedEntrypointHandler.runThreadingBypassHandler(newRunDir, gameInstance);
         }
     }

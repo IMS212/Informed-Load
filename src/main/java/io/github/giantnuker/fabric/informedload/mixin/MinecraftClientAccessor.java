@@ -16,8 +16,11 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(MinecraftClient.class)
 public interface MinecraftClientAccessor {
-    @Invoker("startTimerHackThread")
-    void runStartTimerHackThread();
+    //@Invoker("startTimerHackThread")
+    //void runStartTimerHackThread();
+
+    @Accessor("mouse")
+    void setMouse(Mouse mouse);
 
     @Accessor("LOGGER")
     static Logger getLOGGER() {
