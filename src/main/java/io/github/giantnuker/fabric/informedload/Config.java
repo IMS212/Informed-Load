@@ -53,4 +53,6 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.CollapsibleObject
     @ConfigEntry.Category("worldload")
     public HateDisplay worldload_hateDisplay = new HateDisplay();
+
+    public SplashThemeConfig theme = new SplashThemeConfig();
 }

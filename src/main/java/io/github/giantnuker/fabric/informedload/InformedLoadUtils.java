@@ -54,11 +54,13 @@ public class InformedLoadUtils implements ModInitializer {
         }
     });
     public static boolean isDoingEarlyLoad = false;
+
     public static void logDebug(String message) {
         if (config.logDebugs) {
             InformedLoadUtils.LOGGER.info("[Debug] " + message);
         }
     }
+
     public static TextRenderer textRenderer;
     public static TextureManager textureManager;
     public static final String FONT_JSON = //Taken from loadingspice (https://github.com/therealfarfetchd/loadingspice)
@@ -85,24 +87,33 @@ public class InformedLoadUtils implements ModInitializer {
                     "        \"\\u2261\\u00b1\\u2265\\u2264\\u2320\\u2321\\u00f7\\u2248\\u00b0\\u2219\\u00b7\\u221a\\u207f\\u00b2\\u25a0\\u0000\"\n" +
                     "    ]\n" +
                     "}";
+
     public static int findMiddle(int a, int b) {
         return (a + b) / 2;
     }
+
     public static void renderProgressBar(MatrixStack matrixStack, int x, int y, int endx, int endy, float progress, float f) {
-        int m = MathHelper.ceil((float)(endx - x - 2) * progress);
-        int n = Math.round(f * 255.0F);
-        int o = BackgroundHelper.ColorMixer.getArgb(n, 255, 255, 255);
-        fill(matrixStack, x + 1, y, endx - 1, y + 1, o);
-        fill(matrixStack, x + 1, endy, endx - 1, endy - 1, o);
-        fill(matrixStack, x, y, x + 1, endy, o);
-        fill(matrixStack, endx, y, endx - 1, endy, o);
-        fill(matrixStack, x + 2, y + 2, x + m, endy - 2, o);
+        int m = MathHelper.ceil((float) (endx - x - 2) * progress);
+        int n = Math.round(f * 255.0F) << 24;
+        fill(matrixStack, x, y, endx, endy, config.theme.iprogressbarOutside & 16777215 | n);
+        fill(matrixStack, x + 1, y + 1, endx - 1, endy - 1, config.theme.iprogressbarBackground & 16777215 | n);
+        if (progress > 0.0f) {
+            fill(matrixStack, x + 2, y + 2, x + m, endy - 2, config.theme.iprogressbarInside & 16777215 | n);
+        }
     }
+
+    public static void renderProgressBarWithText(MatrixStack matrixStack, String text, int x, int y, int endx, int endy, float progress, float f) {
+        int n = Math.round(f * 255.0F) << 24;
+        renderProgressBar(matrixStack, x, y, endx, endy, progress, f);
+        InformedLoadUtils.textRenderer.draw(matrixStack, text, InformedLoadUtils.findMiddle(x + 1, endx - 1) - InformedLoadUtils.textRenderer.getWidth(text) / 2f, y + 1, config.theme.iprogressTextColor & 16777215 | n);
+    }
+
     public static void makeProgressBar(MatrixStack matrixStack, int x, int y, int end_x, int end_y, float progress, String text) {
         makeProgressBar(matrixStack, x, y, end_x, end_y, progress, text, Color.WHITE.getRGB(), new Color(226, 40, 55).getRGB());
     }
+
     public static void makeProgressBar(MatrixStack matrixStack, int minX, int minY, int maxX, int maxY, float progress, String text, int outer, int inner) {
-        int percent = MathHelper.ceil(((float)(maxX - minX - 2) * progress) + 1);
+        int percent = MathHelper.ceil(((float) (maxX - minX - 2) * progress) + 1);
 
         fill(matrixStack, minX - 1, minY - 1, maxX + 1, maxY + 1, Color.black.getRGB());
         fill(matrixStack, minX, minY, maxX, maxY, outer);
@@ -110,14 +121,18 @@ public class InformedLoadUtils implements ModInitializer {
         //Text
         InformedLoadUtils.textRenderer.draw(matrixStack, text, InformedLoadUtils.findMiddle(minX + 1, maxX - 1) - InformedLoadUtils.textRenderer.getWidth(text) / 2f, minY + 1, maxY - minY - 2);
     }
+
     public static int fadeOut(Color color, float amount) {
         return fadeColor(color, Color.WHITE, amount).getRGB();
     }
+
     public static Color fadeColor(Color a, Color b, float amount) {
-        return new Color(-16777216 | (int)MathHelper.lerp(1.0F - amount, a.getRed(), b.getRed()) << 16 | (int)MathHelper.lerp(1.0F - amount, a.getGreen(), b.getGreen()) << 8 | (int)MathHelper.lerp(1.0F - amount, a.getBlue(), b.getBlue()));
+        return new Color(-16777216 | (int) MathHelper.lerp(1.0F - amount, a.getRed(), b.getRed()) << 16 | (int) MathHelper.lerp(1.0F - amount, a.getGreen(), b.getGreen()) << 8 | (int) MathHelper.lerp(1.0F - amount, a.getBlue(), b.getBlue()));
     }
+
     public static Config config = null;
     public static Consumer<Object[]> renderProgressBar = null;
+
     @Override
     public void onInitialize() {
         STATUS_TO_COLOR = (Object2IntMap) Util.make(new Object2IntOpenHashMap(), (map) -> {
@@ -152,9 +167,11 @@ public class InformedLoadUtils implements ModInitializer {
             map.put(ChunkStatus.FULL, "Done");
         });
     }
+
     public static int spritesToLoad;
     public static Object2IntMap<ChunkStatus> STATUS_TO_COLOR;
     public static HashMap<ChunkStatus, String> STATUS_TO_NAME;
+
     public static void drawChunkMap(WorldGenerationProgressTracker progressProvider, MatrixStack matrixStack, int centerX, int centerY, int chunkSize) {
         int gridSize = progressProvider.getSize();
 
@@ -167,10 +184,10 @@ public class InformedLoadUtils implements ModInitializer {
         chunkSize *= 16;
         GlStateManager.pushMatrix();
         GlStateManager.scalef(1f / 16f, 1f / 16f, 1f / 16f);
-        for(int gridX = 0; gridX < gridSize; ++gridX) {
-            for(int gridY = 0; gridY < gridSize; ++gridY) {
-                int radius = ((IProgressTracker)progressProvider).getRadius();
-                ChunkPos spawnPos = ((IProgressTracker)progressProvider).getSpawnPos();
+        for (int gridX = 0; gridX < gridSize; ++gridX) {
+            for (int gridY = 0; gridY < gridSize; ++gridY) {
+                int radius = ((IProgressTracker) progressProvider).getRadius();
+                ChunkPos spawnPos = ((IProgressTracker) progressProvider).getSpawnPos();
                 //ChunkPos.toLong(x + this.spawnPos.x - this.radius, z + this.spawnPos.z - this.radius)
                 int chunkX = gridX + spawnPos.x - radius;
                 int chunkZ = gridY + spawnPos.z - radius;
@@ -207,6 +224,7 @@ public class InformedLoadUtils implements ModInitializer {
         }
         GlStateManager.popMatrix();
     }
+
     public static class WorldGen {
         public static int int_3 = 0;
         public static int int_5 = 0;
@@ -219,5 +237,6 @@ public class InformedLoadUtils implements ModInitializer {
         public static int int_12 = 0;
         public static int int_13 = 0;
     }
+
     public static ServerWorld loadingWorld = null;
 }

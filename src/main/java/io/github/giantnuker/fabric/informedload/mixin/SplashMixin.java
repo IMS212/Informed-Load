@@ -1,6 +1,7 @@
 package io.github.giantnuker.fabric.informedload.mixin;
 
 import com.google.gson.JsonParser;
+import io.github.giantnuker.fabric.informedload.InformedEntrypointHandler;
 import io.github.giantnuker.fabric.informedload.InformedLoadUtils;
 import io.github.giantnuker.fabric.informedload.TaskList;
 import net.minecraft.client.MinecraftClient;
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.DrawableHelper;
 import net.minecraft.client.gui.screen.Overlay;
 import net.minecraft.client.gui.screen.SplashScreen;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.resource.ResourceReloadMonitor;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -19,14 +21,31 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * @author Indigo Amann
  */
 @Mixin(SplashScreen.class)
 public abstract class SplashMixin extends Overlay {
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void changeBackColor(MinecraftClient client, ResourceReloadMonitor monitor, Consumer<Optional<Throwable>> exceptionHandler, boolean reloading, CallbackInfo ci) throws NoSuchFieldException, IllegalAccessException {
+        Field colorField = SplashScreen.class.getDeclaredField("field_25042");
+        InformedEntrypointHandler.modifiersField.setInt(colorField, colorField.getModifiers() & ~Modifier.FINAL);
+        colorField.set(this, InformedLoadUtils.config.theme.ibackground & 16777215);
+    }
+
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screen/SplashScreen;fill(Lnet/minecraft/client/util/math/MatrixStack;IIIII)V"))
+    private void fillBkg(MatrixStack matrices, int x1, int y1, int x2, int y2, int color) {
+        DrawableHelper.fill(matrices, x1, y1, x2, y2, (InformedLoadUtils.config.theme.ibackground & 16777215) | (color >>> 24) << 24);
+    }
+
     @Shadow
     private MinecraftClient client;
     @Shadow
@@ -51,5 +70,9 @@ public abstract class SplashMixin extends Overlay {
        // final FontStorage fontStorage_1 = new FontStorage(client.getTextureManager(), new Identifier("loading"));
         //fontStorage_1.setFonts(Collections.singletonList(FontType.BITMAP.createLoader(new JsonParser().parse(InformedLoadUtils.FONT_JSON).getAsJsonObject()).load(client.getResourceManager())));
         //InformedLoadUtils.textRenderer = new TextRenderer(client.getTextureManager(), fontStorage_1);
+        final FontStorage fontStorage_1 = new FontStorage(client.getTextureManager(), new Identifier("loading"));
+        fontStorage_1.setFonts(Collections.singletonList(FontType.BITMAP.createLoader(new JsonParser().parse(InformedLoadUtils.FONT_JSON).getAsJsonObject()).load(client.getResourceManager())));
+
+        InformedLoadUtils.textRenderer = new TextRenderer(id -> fontStorage_1);
     }
 }

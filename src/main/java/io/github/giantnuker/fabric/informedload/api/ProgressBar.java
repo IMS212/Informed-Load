@@ -34,7 +34,8 @@ public abstract class ProgressBar {
         return progress;
     }
     public void render(Window window, MatrixStack matrixStack) {
-        InformedLoadUtils.makeProgressBar(matrixStack, getX(window), getY(window), getMaxX(window), getY(window) + 10, progress, text, outer.getRGB(), inner.getRGB());
+        InformedLoadUtils.renderProgressBarWithText(matrixStack, text, getX(window), getY(window), getMaxX(window), getY(window) + 10, progress, 1f);
+        //InformedLoadUtils.makeProgressBar(matrixStack, getX(window), getY(window), getMaxX(window), getY(window) + 10, progress, text, outer.getRGB(), inner.getRGB());
     }
     protected abstract int getX(Window window);
     protected abstract int getMaxX(Window window);
